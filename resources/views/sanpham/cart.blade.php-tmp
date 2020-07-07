@@ -1,0 +1,138 @@
+@extends('layouts.frontLayout.index')
+@section('content')
+<div class="services-breadcrumb">
+		<div class="agile_inner_breadcrumb">
+			<div class="container">
+				<ul class="w3_short">
+					<li>
+						<a href="index.html">Home</a>
+						<i>|</i>
+					</li>
+					<li>Checkout</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+	<!-- //page -->
+	<!-- checkout page -->
+	<div class="privacy">
+		<div class="container">
+			<!-- tittle heading -->
+			<h3 class="tittle-w3l">Checkout
+				<span class="heading-style">
+					<i></i>
+					<i></i>
+					<i></i>
+				</span>
+			</h3>
+			<!-- //tittle heading -->
+			<div class="checkout-right">
+				<h4>Giỏ hàng</h4>
+			<div class="table-responsive">
+					<table class="timetable_sub">
+						<thead>
+							<tr>
+								<th>SL No.</th>
+								<th>Sản phẩm</th>
+								<th>Ảnh</th>
+							    <th>Màu sắc</th>
+								<th>Size</th>
+								<th>Giá</th>
+								<th>Số lượng</th>
+								<th>Tổng tiền</th>
+
+                                <th>Remove</th>
+							</tr>
+						</thead>
+						<tbody>
+<?php $tong = 0;?>
+@foreach($cart as $cart)
+							<tr class="rem1">
+								<td class="invert">{{$cart->id}}</td>
+
+								<td class="invert">{{$cart->ten_sanpham}}</td>
+								<td class="invert"><img src="{{asset('SanPham/small/'.$cart->anh)}}" alt="" style="width: 100px;"></td>
+
+								<td class="invert">{{$cart->mau_sanpham}}</td>
+								<td class="invert">{{$cart->size}}</td>
+								<td class="invert">{{$cart->gia}},000đ</td>
+								<td class="invert">
+									<div class="quantity">
+										<div class="quantity-select">
+											{{-- <div class="entry value-minus">&nbsp;</div> --}}
+											@if($cart->soluong>1)
+											<a href="{{url('/giohang/suasl/'.$cart->id. '/-1')}}" title="" class="entry value-minus">&nbsp;</a>
+											@endif
+											<div class="entry value">
+												<span>{{$cart->soluong}}</span>
+											</div>
+
+											{{-- <div class="entry value-plus active">&nbsp;</div> --}}
+											<a href="{{url('/giohang/suasl/'.$cart->id. '/1')}}" class="entry value-plus active">&nbsp;</a>
+										</div>
+									</div>
+								</td>
+
+
+								<td class="invert">{{$cart->gia*$cart->soluong}},000đ</td>
+								<td class="invert">
+									<a  href="{{url('/giohang/xoasp/'.$cart->id)}}" title="">Xóa</a>
+								</td>
+							</tr>
+<?php $tong = $tong+($cart->gia*$cart->soluong);?>
+							@endforeach
+						</tbody>
+					</table>
+				</div>
+			</div>
+			<h3 style="text-align: right;"><?php echo $tong;
+?>,000đ</h3>
+			<div class="checkout-left">
+				<div class="address_form_agile">
+					<h4>Nhập mã giảm giá nếu có :</h4>
+					<form action="{{url('/giohang/dungma')}}" method="post">
+						{{csrf_field()}}
+						<input type="text" name="magiamgia">
+						<button type="submit">Sử dụng</button>
+					</form>
+
+				</div>
+				@if(!empty(Session::get('CouponAmount')))
+				<h3 style="text-align: right;"><?php echo $tong;
+?>,000đ</h3>
+				<h3 style="text-align: right;">Giảm :<?php
+if ($tong == 0) {
+	echo 0;
+} else {echo Session::get('CouponAmount');}
+
+?>,000đ</h3>
+				<h3 style="text-align: right;">Thành tiền :<?php
+if ($tong == 0) {
+	echo 0;
+} else {
+	echo $tong-Session::get('CouponAmount');
+}
+
+?>,000đ</h3>
+				@else
+				<h3 style="text-align: right;">Thành tiền :<?php echo $tong;
+?>,000đ</h3>
+				@endif
+
+				{{-- <button  class="submit check_out" style="position: absolute;right: 7%;">Mua sản phẩm</button> --}}
+				<a href="{{url('muahang')}}" style="padding: 12px 25px;
+    letter-spacing: 1px;
+    background: #1accfd;
+    font-size: 16px;
+    color: #fff;
+border: 1px;
+position: absolute;
+right: 7%;
+text-decoration: none;
+">Mua sản phẩm</a>
+				<div class="clearfix"> </div>
+
+			</div>
+		</div>
+	</div>
+@endsection

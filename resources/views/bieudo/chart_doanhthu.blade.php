@@ -1,0 +1,47 @@
+@extends('layouts.adminLayout.admin_design')
+@section('content')
+<div class="container-fluid" style="width: 70%;margin-right: 10%;">
+	<div id="chartContainer" style="height: 300px; width: 100%;"></div>
+</div>
+
+<script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+            
+<script>
+window.onload = function () {
+
+var chart = new CanvasJS.Chart("chartContainer", {
+	animationEnabled: true,
+	theme: "light2", // "light1", "light2", "dark1", "dark2"
+	title:{
+		text: "DOANH THU THEO THÁNG(2019)"
+	},
+	axisY: {
+		title: "Doanh thu"
+	},
+	data: [{        
+		type: "column",  
+		showInLegend: true, 
+		legendMarkerColor: "grey",
+		legendText: "MMbbl = one million barrels",
+		dataPoints: [      
+			{ y: 0, label: "Tháng 1" },
+			{ y: 0,  label: "Tháng 2" },
+			{ y: 0,  label: "Tháng 3" },
+			{ y: 0,  label: "Tháng 4" },
+			{ y: 0,  label: "Tháng 5" },
+			{ y: 0, label: "Tháng 6" },
+			{ y: 0,  label: "Tháng 7" },
+			{ y: 0,  label: "Tháng 8" },
+			{ y: 0,  label: "Tháng 9" },
+			{ y: 0,  label: "Tháng 10" },
+			{ y: 0,  label: "Tháng 11" },
+			{ y: {{$t12->doanhthu}},  label: "Tháng 12" }
+			
+		]
+	}]
+});
+chart.render();
+
+}
+</script>
+@endsection

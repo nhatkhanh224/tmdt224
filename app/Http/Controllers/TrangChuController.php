@@ -1,0 +1,391 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\SanPham;
+use App\LoaiSanPham;
+use App\ThuocTinh;
+use App\Magiamgia;
+use App\DiaChiGiaoHang;
+use App\Order;
+use App\Order_SanPham;
+use App\AnhSanPham;
+use App\BinhLuan;
+use App\DoanhThu;
+use Carbon\Carbon;
+
+use DB;
+use Auth;
+use App\User;
+use Session;
+
+class TrangChuController extends Controller
+{
+   public function trangchu()
+   {
+   	
+   	$dienthoai=SanPham::join('LoaiSanPham','loaisanpham.id_loaisp','sanpham.id_loaisp')->where(['url'=>'dienthoai'])->paginate(3);
+    $thoitrang=SanPham::join('LoaiSanPham','loaisanpham.id_loaisp','sanpham.id_loaisp')->where(['url'=>'thoitrang'])->paginate(6);
+    $nhacua=SanPham::join('LoaiSanPham','loaisanpham.id_loaisp','sanpham.id_loaisp')->where(['url'=>'nhacua'])->paginate(6);
+    
+    $loaisp=LoaiSanPham::where(['parent_id_loaisp'=>0])->get();
+   	foreach ($loaisp as $loai)
+   	 {
+   	$loaisp_sub=LoaiSanPham::where(['parent_id_loaisp'=>$loai->id_loaisp])->get();
+    }
+    return view('trangchu.trangchu')->with(compact('loaisp','loaisp_sub','dienthoai','thoitrang','nhacua'));
+
+   }
+   
+    public function danhsach($id,Request $request){
+        
+      $sanpham=SanPham::where(['id_loaisp'=>$id])->paginate(6);
+     
+      $loaisanpham=LoaiSanPham::where(['id_loaisp'=>$id])->first();
+
+      return view('sanpham.danhsach')->with(compact('sanpham','loaisanpham'));
+    }
+    public function chitietsp($id)
+    {
+      $chitiet_sp=SanPham::where(['id_sanpham'=>$id])->first();
+      $anh_sp=AnhSanPham::where(['id_sanpham'=>$id])->get();
+      if (Auth::check()) {
+      $id_nguoidung=Auth::user()->id;
+      $ten_nguoidung=Auth::user()->name;
+      }
+      else
+      {
+      $id_nguoidung=Session::get('session_id');
+      $ten_nguoidung=Session::get('session_id');
+      }
+      $binhluan=BinhLuan::where(['id_sanpham'=>$id])->paginate(3);
+      return view('sanpham.chitiet')->with(compact('chitiet_sp','anh_sp','binhluan','ten_nguoidung'));
+    }
+    public function laygia(Request $request)
+    {
+      $data=$request->all();
+      // 
+      $thuoctinh=explode("-",$data['idSize']);
+      $thuoctinhsp=ThuocTinh::where(['id_sanpham'=>$thuoctinh[0],'size'=>$thuoctinh[1]])->first();
+
+      echo $thuoctinhsp->giatien;
+    }
+    public function themgiohang(Request $request)
+    {
+      
+      $email_nguoidung=Auth::user()->email;
+      
+      
+      $data=$request->all();
+     
+     
+    $data['user_email']=$email_nguoidung;
+      
+
+      $session_id=Session::get('session_id');
+      if (empty($session_id)) {
+         $session_id=str_random(40);
+      Session::put('session_id',$session_id);
+      }
+     
+      $size_tt=explode("-",$data['size']);
+
+      $demsanpham=DB::table('giohang')->where(['id_sanpham'=>$data['id_sanpham'],'mau_sanpham'=>$data['mau_sanpham'],'size'=>$size_tt[1],'session_id'=>$session_id])->count();
+      if ($demsanpham>0) {
+         return redirect()->back();
+      }
+      else
+      {
+         $laysl=ThuocTinh::select('ma_sanpham')->where(['id_sanpham'=>$data['id_sanpham'],'size'=>$size_tt[1]])->first();
+         DB::table('giohang')->insert(['id_sanpham'=>$data['id_sanpham'],'ten_sanpham'=>$data['ten_sanpham'],'code_sanpham'=>$laysl->ma_sanpham,'mau_sanpham'=>$data['mau_sanpham'],'size'=>$size_tt[1],'gia'=>$data['price'],'soluong'=>$data['soluong'],'user_email'=>$data['user_email'],'session_id'=>$session_id]);
+      }
+
+      
+      return redirect('giohang');
+     
+    }
+    public function giohang(Request $request)
+    {
+      
+      if (Auth::check()) {
+
+        $email_nguoidung=Auth::user()->email;
+        $cart=DB::table('giohang')->where(['user_email'=>$email_nguoidung])->get();
+      }else
+      {
+        $session_id=Session::get('session_id');
+        $cart=DB::table('giohang')->where(['session_id'=>$session_id])->get();
+      }
+      
+      foreach ($cart as $key => $sp) {
+        
+        $chitiet_sp=SanPham::where(['id_sanpham'=>$sp->id_sanpham])->first();
+        $cart[$key]->anh=$chitiet_sp->anh;
+
+      }
+
+      return view('sanpham.cart')->with(compact('cart'));
+    }
+    
+    public function giohang_xoasp($id=null)
+    {
+      DB::table('giohang')->where('id',$id)->delete();
+      return redirect('giohang');
+    }
+  
+    public function giohang_suasl($id=null,$soluong=null)
+    {
+      $chitiet_gio=DB::table('giohang')->where('id',$id)->first();
+
+
+      $thuoctinh_sl=ThuocTinh::where(['ma_sanpham'=>$chitiet_gio->code_sanpham])->first();
+
+      
+      
+      echo $suasl=$chitiet_gio->soluong+$soluong;
+      
+      if ($thuoctinh_sl->soluong>=$suasl) {
+        DB::table('giohang')->where('id',$id)->increment('soluong',$soluong);
+      return redirect('giohang');
+      }
+      else
+      {
+        return redirect('giohang');
+      }
+
+      
+    }
+    public function dungma(Request $request)
+    {
+      Session::forget('CouponAmount');
+      Session::forget('CouponCode');
+      $data=$request->all();
+      $demma=Magiamgia::where('magiamgia',$data['magiamgia'])->count();
+      if ($demma==0) {
+        return redirect()->back()->with('error','Mã không hợp lệ');
+      }
+      else{
+        $couponDetails=Magiamgia::where('magiamgia',$data['magiamgia'])->first();
+        if ($couponDetails->trangthai==0) {
+          return redirect()->back()->with('error','Mã không phù hợp');
+        }
+        $thoihan=$couponDetails->thoihan;
+        $ngayhientai=date('Y-m-d');
+        if ($thoihan<$ngayhientai) {
+          return redirect()->back()->with('error','Mã hết hạn');
+        }
+        $email_nguoidung=Auth::user()->email;
+        if (Auth::check()) {
+
+        $email_nguoidung=Auth::user()->email;
+        $cart=DB::table('giohang')->where(['user_email'=>$email_nguoidung])->get();
+      }else
+      {
+        $session_id=Session::get('session_id');
+        $cart=DB::table('giohang')->where(['session_id'=>$session_id])->get();
+      }
+
+        $total_amount=0;
+        foreach ($cart as $item) {
+          $total_amount=$total_amount+($item->gia*$item->soluong);
+        }
+
+        if ($couponDetails->loai=='thanh_tien') {
+          $couponAmount=$couponDetails->sotien;
+        }
+        else
+        {
+          
+          $couponAmount=$total_amount*($couponDetails->sotien/100);
+        }
+        Session::put('CouponAmount',$couponAmount);
+        Session::put('CouponCode',$data['magiamgia']);
+        return redirect()->back()->with('success','Thanh cong');
+      }
+    }
+
+    public function muahang(Request $request)
+    {
+        $id_tk=Auth::user()->id;
+
+        $email_nguoidung=Auth::user()->email;
+        $chitiet_tk=User::find($id_tk);
+        $tinh= $chitiet_tk->tinh_tp;
+        $huyen=$chitiet_tk->quan_huyen;
+        $countries = DB::table('countries')->pluck("name","id")->all();
+        $countries_hai=DB::table('countries')->select('name')->where('id',$tinh)->get();
+        $state = DB::table('states')->pluck("name","id")->all();
+        $state_hai=DB::table('states')->select('name')->where('id',$huyen)->get();
+        $tinh_mot=$countries_hai[0]->name;
+        $huyen_mot=$state_hai[0]->name;
+        $shipcount=DiaChiGiaoHang::where('id_nguoidung',$id_tk)->count();
+        if ($shipcount>0) {
+          $chitiet_ship=DiaChiGiaoHang::where('id_nguoidung',$id_tk)->first();
+        }
+        $session_id=Session::get('session_id');
+        DB::table('giohang')->where(['session_id'=>$session_id])->update(['user_email'=>$email_nguoidung]);
+        if ($request->isMethod('post')) {
+          $data=$request->all();
+         
+        if (empty($data['ten']) || empty($data['diachi']) || empty($data['sdt'])) {
+            return redirect()->back()->with('error','Vui lòng điền đầy đủ thông tin !');
+          }
+         User::where(['id'=>$id_tk])->update(['name'=>$data['ten'],'diachi'=>
+            $data['diachi'],'sdt'=>$data['sdt']]);
+        if ($shipcount>0) {
+           DiaChiGiaoHang::where('id_nguoidung',$id_tk)->update(['ten'=>$data['ten'],'diachi'=>$data['diachi'],'sdt'=>$data['sdt']]);
+                          } 
+        else {
+          $ship=new DiaChiGiaoHang;
+          $ship->id_nguoidung=$id_tk;
+          $ship->email_nguoidung=$email_nguoidung;
+          $ship->ten=$data['ten'];
+          $ship->diachi=$data['diachi'];
+          $ship->sdt=$data['sdt'];
+          $ship->save();
+          }
+         }
+      return view('sanpham.muahang')->with(compact('countries','id_tk','chitiet_tk','countries_hai','tinh_mot','state_hai','huyen_mot'));
+    }
+    public function orderReview()
+    {
+      $id_tk=Auth::user()->id;
+      $email_nguoidung=Auth::user()->email;
+      $chitiet_user=User::where('id',$id_tk)->first();
+      $chitiet_ship=DiaChiGiaoHang::where('id_nguoidung',$id_tk)->first();
+
+      $cart=DB::table('giohang')->where(['user_email'=>$email_nguoidung])->get();
+      foreach ($cart as $key => $sp) {
+        
+        $chitiet_sp=SanPham::where(['id_sanpham'=>$sp->id_sanpham])->first();
+        $cart[$key]->anh=$chitiet_sp->anh;
+
+      }
+      return view('sanpham.review')->with(compact('chitiet_ship','chitiet_user','cart'));
+    }
+    public function dathang(Request $request)
+    {
+      if ($request->isMethod('post')) {
+        $data=$request->all();
+        $id_tk=Auth::user()->id;
+         $email_nguoidung=Auth::user()->email;
+        $chitiet_ship=DiaChiGiaoHang::where('email_nguoidung',$email_nguoidung)->first();
+        if (empty(Session::get('CouponCode'))) {
+           $magiamgia="";
+        } else {
+          $magiamgia=Session::get('CouponCode');
+        }
+        
+      
+
+      if (empty(Session::get('CouponAmount'))) {
+           $sotien=0;
+        } else {
+          $sotien=Session::get('CouponAmount');
+        }
+        
+
+        $order=new Order;
+        $order->id_nguoidung=$id_tk;
+        $order->email_nguoidung=$email_nguoidung;
+        $order->ten=$chitiet_ship->ten;
+        $order->diachi=$chitiet_ship->diachi;
+        $order->sdt=$chitiet_ship->sdt;
+        $order->tienship="30";
+        $order->magiamgia=$magiamgia;
+        $order->sotien=$sotien;
+        $order->trangthai="Mới đặt hàng";
+        $order->phuongthuc=$data['phuongthuc'];
+        $order->tongtien=$data['tongtien'];
+        $order->save();
+
+        $id_dathang=DB::getPdo()->lastInsertId();
+
+
+        $cart=DB::table('giohang')->where(['user_email'=>$email_nguoidung])->get();
+          foreach ($cart as $pro) {
+          $order_sp= new Order_SanPham;
+          $order_sp->id_dathang=$id_dathang;
+          $order_sp->id_nguoidung=$id_tk;
+          $order_sp->id_sanpham=$pro->id_sanpham;
+          $order_sp->ma_sanpham=$pro->code_sanpham;
+          $order_sp->ten_sanpham=$pro->ten_sanpham;
+          $order_sp->size=$pro->size;
+          $order_sp->gia=$pro->gia;
+          $order_sp->soluong=$pro->soluong;
+          $order_sp->save();
+        }
+         return redirect('/order');
+       }
+
+    }
+    
+    public function order(Request $request)
+    {
+      $email_nguoidung=Auth::user()->email;
+      $id_tk=Auth::user()->id;
+      DB::table('giohang')->where('user_email',$email_nguoidung)->delete();
+      $order=Order::with('order')->where('id_nguoidung',$id_tk)->get();
+      return view('sanpham.show_spmua')->with(compact('order'));
+    }
+    public function order_chitiet(Request $request)
+    {
+      return view('sanpham.show_spmua_chitiet');
+    }
+    ///xem order admin
+    public function xemorder()
+    {
+      $t12 = Carbon::create(2019,12,1);
+      
+      $order=Order::with('order')->orderBy('id','Desc')->where('created_at','>=',$t12)->get();
+      return view('admin.order.xem_order')->with(compact('order'));
+    }
+    public function doanhthu(Request $request)
+    {
+      if ($request->isMethod('post')) {
+        $data=$request->all();
+        DoanhThu::where('tháng',"12")->update(['doanh thu'=>$data['doanhthu']]);
+        return redirect()->back(); 
+
+        
+        
+      }
+      
+    }
+    public function chitiet_order($id_dathang)
+    {
+      $chitiet_order=Order::with('order')->where('id',$id_dathang)->first();
+      $id_nguoidung=$chitiet_order->id_nguoidung;
+      $chitiet_user=User::where('id',$id_nguoidung)->first();
+      $chitiet_user=json_decode(json_encode($chitiet_user));
+      
+      return view('admin.order.xem_chitiet')->with(compact('chitiet_order','chitiet_user'));
+
+
+    }
+    public function sua_tinhtrang(Request $request)
+    {
+      if ($request->isMethod('post')) {
+        $data=$request->all();
+        Order::where('id',$data['id_dathang'])->update(['trangthai'=>$data['trangthai_order']]);
+        return redirect()->back()->with('success','Cập nhật thành công');
+      }
+    }
+    public function timsanpham(Request $request)
+    {
+
+      if ($request->isMethod('post')) {
+        $data=$request->all();
+        $loaisanpham=LoaiSanPham::with('loaisanpham')->where(['parent_id_loaisp'=>0])->get();
+
+        $tim=$data['sanpham'];
+        
+        $tim_sp=SanPham::where('ten_sanpham','like','%'.$tim.'%')->orwhere('code_sanpham',$tim)->get();
+        // echo "<pre>";print_r($tim_sp);die;
+        return view('sanpham.timkiem')->with(compact('loaisanpham','tim','tim_sp'));
+      }
+    }
+            
+  
+}
